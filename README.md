@@ -1,6 +1,6 @@
 # Agentenlesbarkeit im Maschinenbau
 
-Abruf- und Auswertungsskripte der Studie **Agentenlesbarkeit im Maschinenbau 2027**. Hypothesen, Schwellen, Prognosen, Codebuch und Abrufregeln stehen in der Präregistrierung: <https://leitstand.one/studie> (English: <https://leitstand.one/en/study>). Dieses Repository setzt die Fassung 1.0 um. Werte, die die Präregistrierung festlegt, stehen gesammelt in [`agentenlesbarkeit/konfig.py`](agentenlesbarkeit/konfig.py).
+Abruf- und Auswertungsskripte der Studie **Agentenlesbarkeit im Maschinenbau 2027**. Hypothesen, Schwellen, Prognosen, Codebuch und Abrufregeln stehen in der Präregistrierung: <https://leitstand.one/studie> (English: <https://leitstand.one/en/study>). Dieses Repository setzt die Fassung 1.1 um. Werte, die die Präregistrierung festlegt, stehen gesammelt in [`agentenlesbarkeit/konfig.py`](agentenlesbarkeit/konfig.py).
 
 Veröffentlicht werden hier Code, Codebuch und später der aggregierte Datensatz. Domainlisten, Sichtung und Rohantworten bleiben intern (siehe [Datenhaltung](#datenhaltung)).
 
@@ -15,6 +15,7 @@ Veröffentlicht werden hier Code, Codebuch und später der aggregierte Datensatz
 - Vorbehalte nach dem TDM Reservation Protocol werden respektiert: Datei, Header oder Meta-Element. Bei einem Vorbehalt werden nur Status und Header gespeichert, der Inhalt wird verworfen.
 - Challenges und Sperren werden nicht umgangen, sondern als Abweisung notiert. Eine Abweisung wird frühestens nach 24 Stunden einmal wiederholt.
 - Chromium lädt keine Bilder, Medien und Schriften.
+- Nur der explorative Arm `roh_signiert` signiert per Web Bot Auth (RFC 9421, Ed25519, [`signatur.py`](agentenlesbarkeit/signatur.py)). Der Hauptabruf für H4 bleibt unsigniert und unverifiziert.
 
 ## Installation
 
@@ -60,6 +61,21 @@ python -m agentenlesbarkeit merkmale-a --lauf intern/laeufe/stichprobe_rz intern
 
 Für den Pretest an 20 Domains außerhalb der Stichprobe reicht eine Textdatei mit einer Domain je Zeile.
 
+### Signierter Arm (explorativ)
+
+```bash
+# einmalig: Schlüssel erzeugen; die ausgegebene Zeile als Secret WEB_BOT_AUTH_JWK in Cloudflare Pages
+python -m agentenlesbarkeit schluessel --aus intern/signatur
+# nach der Freigabe durch Cloudflare: muss 200 statt 401 liefern
+python -m agentenlesbarkeit signatur-test --schluessel intern/signatur/privat.pem
+# Lauf, nur im Rechenzentrum und mit eigenem Laufverzeichnis
+python -m agentenlesbarkeit zugang --domains intern/ziehung/stichprobe.csv --modus stichprobe \
+    --netz rechenzentrum --client roh_signiert --schluessel intern/signatur/privat.pem \
+    --aus intern/laeufe/stichprobe_rz_signiert
+```
+
+Das Schlüsselverzeichnis liefert leitstand.one unter `/.well-known/http-message-signatures-directory` aus. Bei Cloudflare ist es ohne User-Agent-Muster registriert, damit unsignierte Abrufe mit derselben Kennung nicht als Fälschung gelten.
+
 ## Module und Codebuch
 
 | Modul | Codebuch | Hypothese |
@@ -69,6 +85,7 @@ Für den Pretest an 20 Domains außerhalb der Stichprobe reicht eine Textdatei m
 | `zugang.py` | Ablauf je Domain, TDM-Vorbehalt, Wiederholung | H1, H4 |
 | `merkmale_a.py` | A1–A5 je Domain, A5 Anteil ohne JavaScript | H1, H2, H4 |
 | `ziehung.py` | Ziehung, Hash, Sichtung, Schichtanteile, Gewichte | alle |
+| `signatur.py` | Web Bot Auth für den explorativen Arm `roh_signiert` | H4 (explorativ) |
 
 Noch nicht enthalten: Seitenauswahl aus der Sitemap, Bereich B (Kenngrößen, PDF, Texterkennung, strukturierte Daten), der Codierbogen für Bereich C und die Auswertung (Wilson, Newcombe, Cluster-Bootstrap).
 

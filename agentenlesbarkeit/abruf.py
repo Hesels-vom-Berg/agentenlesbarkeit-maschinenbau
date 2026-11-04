@@ -19,7 +19,7 @@ from urllib.parse import urljoin, urlsplit
 
 import httpx
 
-from . import konfig, robots, schutz
+from . import konfig, robots, schutz, signatur
 from .drossel import Drossel
 from .speicher import Speicher
 
@@ -75,8 +75,11 @@ class Abrufer:
     """Einfacher HTTP-Client mit robots-Prüfung, Drossel und WARC-Speicherung."""
 
     def __init__(self, speicher: Speicher, drossel: Drossel, netz: str,
-                 transport: httpx.AsyncBaseTransport | None = None) -> None:
+                 transport: httpx.AsyncBaseTransport | None = None, signatur_schluessel=None) -> None:
+        """signatur_schluessel: Ed25519-Schlüssel für den explorativen Arm roh_signiert, sonst None."""
         self.speicher = speicher
+        self.signatur_schluessel = signatur_schluessel
+        self.client_name = "roh_signiert" if signatur_schluessel is not None else "roh"
         self.drossel = drossel
         self.netz = netz
         self._transport = transport
@@ -100,8 +103,9 @@ class Abrufer:
         assert self.client is not None
         await self.drossel.warte(url)
         a = Antwort(url=url, url_final=url)
+        zusatz = signatur.signiere(url, self.signatur_schluessel) if self.signatur_schluessel else None
         try:
-            async with self.client.stream("GET", url) as r:
+            async with self.client.stream("GET", url, headers=zusatz) as r:
                 a.status, a.grund = r.status_code, r.reason_phrase
                 a.header = list(r.headers.multi_items())
                 teile, groesse = [], 0
@@ -127,7 +131,7 @@ class Abrufer:
                 a.url, "GET", ANFRAGE_HEADER, a.status, a.grund, a.header,
                 b"" if koerper_verwerfen else a.koerper)
         self.speicher.index({
-            "domain": domain, "art": art, "client": "roh", "netz": self.netz,
+            "domain": domain, "art": art, "client": self.client_name, "netz": self.netz,
             "url": a.url, "url_final": a.url_final, "status": a.status, "fehler": a.fehler,
             "nicht_durchgefuehrt": a.nicht_durchgefuehrt, "abgeschnitten": a.abgeschnitten,
             "kette": a.kette, "record_id": a.record_id,

@@ -1,10 +1,10 @@
-"""Feste Werte der Erhebung, Fassung 1.0.
+"""Feste Werte der Erhebung, Präregistrierung Fassung 1.1.
 
 Alles, was die Präregistrierung (https://leitstand.one/studie) festlegt, steht
 hier an einer Stelle. Änderungen während einer Welle sind nicht zulässig.
 """
 
-FASSUNG = "1.0"
+FASSUNG = "1.1"
 
 # Deklarierter Agent. Das Produktkennzeichen für robots.txt ist PRODUKT.
 PRODUKT = "leitstand-studie"

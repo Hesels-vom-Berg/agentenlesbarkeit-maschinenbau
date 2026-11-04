@@ -18,7 +18,9 @@ from .speicher import Speicher
 
 UNSICHTBAR = ("script", "style", "noscript", "template", "svg", "head")
 BEDINGUNGEN = [("roh", "rechenzentrum"), ("roh", "geschaeftsanschluss"),
-               ("chromium", "rechenzentrum"), ("chromium", "geschaeftsanschluss")]
+               ("chromium", "rechenzentrum"), ("chromium", "geschaeftsanschluss"),
+               # explorativ, nicht Teil des Hypothesentests:
+               ("roh_signiert", "rechenzentrum"), ("roh_signiert", "geschaeftsanschluss")]
 
 
 def sichtbarer_text(html: str) -> str:

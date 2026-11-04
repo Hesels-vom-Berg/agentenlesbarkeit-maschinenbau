@@ -5,6 +5,8 @@
   zugang        robots.txt und Startseite abrufen (Vollerhebung oder Stichprobe)
   wiederholung  Abweisungen nach 24 Stunden einmal wiederholen
   merkmale-a    Merkmale A1 bis A5 aus gespeicherten Läufen berechnen
+  schluessel    Ed25519-Schlüssel für Web Bot Auth erzeugen (explorativer Arm)
+  signatur-test eine signierte Anfrage an den Prüf-Endpunkt von Cloudflare senden
 """
 
 from __future__ import annotations
@@ -16,7 +18,7 @@ import sys
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from . import konfig, merkmale_a, ziehung, zugang
+from . import konfig, merkmale_a, signatur, ziehung, zugang
 from .abruf import Abrufer, Renderer
 from .drossel import Drossel
 from .speicher import Speicher
@@ -53,6 +55,14 @@ def _domains(datei: str) -> list[str]:
 async def _zugang(args, domains: list[str], versuch: int) -> None:
     speicher = Speicher(args.aus)
     drossel = Drossel()
+    clients = {c.strip() for c in args.client.split(",")}
+    if "roh_signiert" in clients:
+        if clients != {"roh_signiert"} or not args.schluessel:
+            raise SystemExit("roh_signiert läuft allein und braucht --schluessel (explorativer Arm)")
+        async with Abrufer(speicher, drossel, args.netz,
+                           signatur_schluessel=signatur.lade(args.schluessel)) as abrufer:
+            await zugang.lauf(domains, abrufer, None, args.modus, args.parallel, versuch)
+        return
     async with Abrufer(speicher, drossel, args.netz) as abrufer:
         if "chromium" in args.client:
             async with Renderer(speicher, drossel, args.netz, abrufer) as renderer:
@@ -85,6 +95,14 @@ def main(argv: list[str] | None = None) -> int:
         g.add_argument("--client", default="roh", help="roh, chromium oder roh,chromium")
         g.add_argument("--modus", default="vollerhebung", choices=["vollerhebung", "stichprobe"])
         g.add_argument("--parallel", type=int, default=20, help="gleichzeitige Domains (Hosts)")
+        g.add_argument("--schluessel", help="privat.pem, nur für --client roh_signiert")
+
+    k = u.add_parser("schluessel", help="Ed25519-Schlüssel für Web Bot Auth erzeugen")
+    k.add_argument("--aus", required=True, help="Verzeichnis, z. B. intern/signatur (nie veröffentlichen)")
+
+    t = u.add_parser("signatur-test", help="signierte Anfrage an einen Prüf-Endpunkt senden")
+    t.add_argument("--schluessel", required=True, help="privat.pem")
+    t.add_argument("--url", default="https://crawltest.com/cdn-cgi/web-bot-auth")
 
     m = u.add_parser("merkmale-a", help="Merkmale A1 bis A5 berechnen")
     m.add_argument("--lauf", nargs="+", required=True, help="ein oder mehrere Laufverzeichnisse")
@@ -112,6 +130,20 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{len(faellig)} Domains zur Wiederholung", file=sys.stderr)
         if faellig:
             asyncio.run(_zugang(args, sorted(faellig), versuch=2))
+    elif args.befehl == "schluessel":
+        werte = signatur.erzeuge(args.aus)
+        print(f"keyid (JWK-Thumbprint): {werte['keyid']}")
+        print(f"Öffentlicher Schlüssel: {json.dumps(werte['oeffentlich'])}")
+        print("\nIn Cloudflare Pages (Projekt leitstand-site) als Secret WEB_BOT_AUTH_JWK hinterlegen:")
+        print(werte["pages_secret"])
+        print("\nDiesen Wert nicht speichern, nicht weitergeben. privat.pem bleibt in --aus.")
+    elif args.befehl == "signatur-test":
+        import httpx
+        kopf = {"User-Agent": konfig.USER_AGENT, "From": konfig.KONTAKT,
+                **signatur.signiere(args.url, signatur.lade(args.schluessel))}
+        r = httpx.get(args.url, headers=kopf, timeout=20)
+        print(f"{r.status_code} {r.reason_phrase}")
+        print(r.text[:500])
     elif args.befehl == "merkmale-a":
         n = merkmale_a.berechne(args.lauf, args.aus, args.primaer_netz)
         print(f"{n} Domains -> {args.aus}", file=sys.stderr)
