@@ -11,7 +11,7 @@ Veröffentlicht werden hier Code, Codebuch und später der aggregierte Datensatz
   - 4xx bedeutet „fehlt“: alles ist frei.
   - 5xx und 429 bedeuten „Serverfehler“: alles gilt als gesperrt.
   - Ein Netzfehler bedeutet „unerreichbar“: alles gilt als gesperrt und wird als technischer Fehlschlag notiert.
-- Höchstens eine Anfrage je Host alle 5 Sekunden ([`drossel.py`](agentenlesbarkeit/drossel.py)).
+- Höchstens eine Anfrage je Host alle 5 Sekunden ([`drossel.py`](agentenlesbarkeit/drossel.py)). Ein größerer `Crawl-delay` in der robots.txt wird eingehalten.
 - Vorbehalte nach dem TDM Reservation Protocol werden respektiert: Datei, Header oder Meta-Element. Bei einem Vorbehalt werden nur Status und Header gespeichert, der Inhalt wird verworfen.
 - Challenges und Sperren werden nicht umgangen, sondern als Abweisung notiert. Eine Abweisung wird frühestens nach 24 Stunden einmal wiederholt.
 - Chromium lädt keine Bilder, Medien und Schriften.

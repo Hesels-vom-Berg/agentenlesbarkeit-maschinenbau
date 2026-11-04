@@ -29,7 +29,13 @@ class Drossel:
         self._schlafen = schlafen
         self._schloesser: dict[str, asyncio.Lock] = {}
         self._zuletzt: dict[str, float] = {}
+        self._abstand_host: dict[str, float] = {}
         self.protokoll: list[tuple[str, float]] = []   # (Host, Startzeit) für Tests und Prüfung
+
+    def setze_mindestabstand(self, url: str, sekunden: float) -> None:
+        """Größerer Abstand für einen Host, z. B. aus Crawl-delay. Nie kleiner als abstand_s."""
+        host = host_schluessel(url)
+        self._abstand_host[host] = max(self.abstand_s, sekunden, self._abstand_host.get(host, 0.0))
 
     async def warte(self, url: str) -> None:
         host = host_schluessel(url)
@@ -37,7 +43,7 @@ class Drossel:
         async with schloss:
             letzte = self._zuletzt.get(host)
             if letzte is not None:
-                rest = self.abstand_s - (self._uhr() - letzte)
+                rest = self._abstand_host.get(host, self.abstand_s) - (self._uhr() - letzte)
                 if rest > 0:
                     await self._schlafen(rest)
             jetzt = self._uhr()

@@ -24,6 +24,7 @@ class Gruppe:
     agenten: list[str] = field(default_factory=list)   # normalisierte Kennzeichen
     agenten_zeilen: list[int] = field(default_factory=list)
     regeln: list[Regel] = field(default_factory=list)
+    crawl_delay: float | None = None
 
 
 @dataclass
@@ -66,6 +67,11 @@ class Robots:
             return True
         regeln = [r for g in self.gruppen_fuer(produkt) for r in g.regeln]
         return entscheide(regeln, pfad)
+
+    def crawl_delay(self, produkt: str) -> float | None:
+        """Crawl-delay der für produkt geltenden Gruppen (nicht Teil von RFC 9309, wird aber befolgt)."""
+        werte = [g.crawl_delay for g in self.gruppen_fuer(produkt) if g.crawl_delay is not None]
+        return max(werte) if werte else None
 
     # --- KI-Regel (A2) ------------------------------------------------------
 
@@ -168,6 +174,11 @@ def parse(text: str) -> Robots:
             rb.sitemaps.append(wert)
         elif schluessel == "content-signal":
             rb.content_signals.append((i, parse_content_signal(wert)))
+        elif schluessel == "crawl-delay" and aktuell is not None:
+            try:
+                aktuell.crawl_delay = max(0.0, float(wert.replace(",", ".")))
+            except ValueError:
+                rb.ungueltige_zeilen += 1
         else:
             # Andere Felder (z. B. Crawl-delay) sind erlaubt, werden aber nicht ausgewertet.
             pass

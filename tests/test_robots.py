@@ -89,6 +89,13 @@ def test_herkunft_dienstleister_und_beides():
     assert robots.ki_regeltyp(rb)["herkunft"] == "beides"
 
 
+def test_crawl_delay():
+    rb = robots.parse("User-agent: *\nCrawl-delay: 10\n\nUser-agent: GPTBot\nCrawl-delay: 2,5\nDisallow: /\n")
+    assert rb.crawl_delay(P) == 10.0
+    assert rb.crawl_delay("GPTBot") == 2.5
+    assert robots.parse("User-agent: *\nAllow: /\n").crawl_delay(P) is None
+
+
 def test_serverfehler_gilt_als_alles_gesperrt_ohne_ki_regel():
     t = robots.ki_regeltyp(robots.serverfehler())
     assert t == {"ki_regel": False, "typ": "alles_gesperrt", "herkunft": "", "genannt": ""}

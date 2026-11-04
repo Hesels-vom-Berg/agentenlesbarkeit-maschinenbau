@@ -43,6 +43,20 @@ def test_gleichzeitige_anfragen_werden_gestaffelt():
     assert starts == [1000.0, 1005.0, 1010.0, 1015.0]
 
 
+def test_crawl_delay_vergroessert_nur():
+    uhr = Uhr()
+    d = Drossel(abstand_s=5.0, uhr=uhr, schlafen=uhr.schlafen)
+    d.setze_mindestabstand("https://a.de/", 12)
+    d.setze_mindestabstand("https://b.de/", 1)     # kleiner als 5 s: bleibt 5 s
+
+    async def ablauf():
+        for host in ("a.de", "b.de"):
+            await d.warte(f"https://{host}/1")
+            await d.warte(f"https://{host}/2")
+    asyncio.run(ablauf())
+    assert uhr.geschlafen == [12.0, 5.0]
+
+
 def test_host_schluessel():
     assert host_schluessel("https://WWW.A.de/x") == "www.a.de:443"
     assert host_schluessel("http://a.de:8080/") == "a.de:8080"

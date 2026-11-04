@@ -172,6 +172,9 @@ class Abrufer:
                 rb = robots.fehlt()
             else:
                 rb = robots.parse(a.koerper.decode("utf-8", errors="replace"))
+                verzoegerung = rb.crawl_delay(konfig.PRODUKT)
+                if verzoegerung:
+                    self.drossel.setze_mindestabstand(url, verzoegerung)
             self._speichere(a, "robots", domain, {"robots_zustand": rb.zustand,
                                                   "robots_herkunft": schluessel})
             self._robots[schluessel] = rb
