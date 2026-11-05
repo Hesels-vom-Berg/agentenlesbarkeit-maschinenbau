@@ -69,18 +69,32 @@ def test_authority_mit_und_ohne_port():
     assert signatur.authority("http://beispiel.de:8080/x") == "beispiel.de:8080"
 
 
-def test_erzeuge_schreibt_privat_nur_fuer_eigentuemer(tmp_path):
+def test_erzeuge_schreibt_privat_nur_fuer_eigentuemer(tmp_path, capsys):
     werte = signatur.erzeuge(str(tmp_path / "sig"))
     privat = tmp_path / "sig" / "privat.pem"
+    jwk = tmp_path / "sig" / "privat.jwk.json"
     assert stat.S_IMODE(os.stat(privat).st_mode) == 0o600
-    geheim = json.loads(werte["pages_secret"])
+    assert stat.S_IMODE(os.stat(jwk).st_mode) == 0o600
+    assert stat.S_IMODE(os.stat(tmp_path / "sig").st_mode) == 0o700
+    geheim = json.loads(jwk.read_text())
     assert set(geheim) == {"kty", "crv", "x", "d"}
+    assert geheim["d"] not in json.dumps(werte)       # privater Teil nie im Rückgabewert
     oeffentlich = json.loads((tmp_path / "sig" / "oeffentlich.jwk.json").read_text())
     assert "d" not in oeffentlich and oeffentlich["x"] == geheim["x"]
     assert werte["keyid"] == signatur.jwk_thumbprint(geheim["x"])
     s = signatur.lade(str(privat))
     pub = Ed25519PublicKey.from_public_bytes(base64.urlsafe_b64decode(oeffentlich["x"] + "="))
     pub.verify(s.sign(b"probe"), b"probe")
+
+
+def test_kommandozeile_gibt_privaten_schluessel_nie_aus(tmp_path, capsys):
+    from agentenlesbarkeit.cli import main
+    main(["schluessel", "--aus", str(tmp_path / "sig")])
+    ausgabe = capsys.readouterr().out
+    d = json.loads((tmp_path / "sig" / "privat.jwk.json").read_text())["d"]
+    pem = (tmp_path / "sig" / "privat.pem").read_text()
+    assert d not in ausgabe and "PRIVATE KEY" not in ausgabe and pem not in ausgabe
+    assert "privat.jwk.json" in ausgabe
 
 
 def test_signierter_arm_signiert_jede_anfrage_mit_ihrer_authority(tmp_path):
