@@ -1,0 +1,13 @@
+# Interne Daten: Domainlisten, Sichtung, Rohantworten. Nie veröffentlichen.
+# Präregistrierung: Die Domainliste bleibt intern, veröffentlicht werden Hash und Regel.
+intern/
+*.warc.gz
+index.jsonl
+sichtungsliste.csv
+stichprobe.csv
+rahmen*.csv
+
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.venv/
