@@ -134,9 +134,11 @@ def main(argv: list[str] | None = None) -> int:
         werte = signatur.erzeuge(args.aus)
         print(f"keyid (JWK-Thumbprint): {werte['keyid']}")
         print(f"Öffentlicher Schlüssel: {json.dumps(werte['oeffentlich'])}")
-        print("\nIn Cloudflare Pages (Projekt leitstand-site) als Secret WEB_BOT_AUTH_JWK hinterlegen:")
-        print(werte["pages_secret"])
-        print("\nDiesen Wert nicht speichern, nicht weitergeben. privat.pem bleibt in --aus.")
+        print(f"\nPrivater Schlüssel (nur für dich lesbar): {werte['privat_pem']}")
+        print(f"Inhalt für das Pages-Secret WEB_BOT_AUTH_JWK: {werte['privat_jwk']}")
+        print("Übertragen ohne Bildschirmausgabe, z. B.:")
+        print(f"  npx wrangler pages secret put WEB_BOT_AUTH_JWK --project-name <Pages-Projekt> < {werte['privat_jwk']}")
+        print("oder im Dashboard: Datei öffnen, Inhalt als Secret einfügen. Beide Dateien nie weitergeben.")
     elif args.befehl == "signatur-test":
         import httpx
         kopf = {"User-Agent": konfig.USER_AGENT, "From": konfig.KONTAKT,

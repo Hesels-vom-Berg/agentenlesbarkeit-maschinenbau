@@ -64,7 +64,8 @@ Für den Pretest an 20 Domains außerhalb der Stichprobe reicht eine Textdatei m
 ### Signierter Arm (explorativ)
 
 ```bash
-# einmalig: Schlüssel erzeugen; die ausgegebene Zeile als Secret WEB_BOT_AUTH_JWK in Cloudflare Pages
+# einmalig: Schlüssel erzeugen (Dateien mit Rechten 0600, keine Bildschirmausgabe des Schlüssels);
+# intern/signatur/privat.jwk.json als Secret WEB_BOT_AUTH_JWK in Cloudflare Pages hinterlegen
 python -m agentenlesbarkeit schluessel --aus intern/signatur
 # nach der Freigabe durch Cloudflare: muss 200 statt 401 liefern
 python -m agentenlesbarkeit signatur-test --schluessel intern/signatur/privat.pem

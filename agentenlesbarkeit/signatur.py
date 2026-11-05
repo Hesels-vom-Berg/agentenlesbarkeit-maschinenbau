@@ -51,27 +51,41 @@ def authority(url: str) -> str:
     return host if t.port in (None, standard) else f"{host}:{t.port}"
 
 
+def _nur_eigentuemer(pfad: Path, inhalt: bytes) -> None:
+    """Schreibt eine neue Datei mit Rechten 0600; bestehende Dateien werden nie überschrieben."""
+    fd = os.open(pfad, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "wb") as f:
+        f.write(inhalt)
+
+
 def erzeuge(verzeichnis: str) -> dict:
-    """Erzeugt ein Schlüsselpaar. Schreibt privat.pem (nur für den Eigentümer lesbar),
-    oeffentlich.jwk.json und gibt die Werte für das Verzeichnis und das Pages-Secret zurück."""
+    """Erzeugt ein Schlüsselpaar im Verzeichnis (nur für den Eigentümer lesbar):
+
+      privat.pem          privater Schlüssel für den Erhebungsrechner
+      privat.jwk.json     derselbe Schlüssel als JWK, Inhalt des Pages-Secrets WEB_BOT_AUTH_JWK
+      oeffentlich.jwk.json
+
+    Der private Schlüssel wird nie ausgegeben. Zurück kommen nur keyid, öffentlicher
+    Schlüssel und Dateipfade."""
     ziel = Path(verzeichnis)
     ziel.mkdir(parents=True, exist_ok=True)
-    privat_pfad = ziel / "privat.pem"
-    if privat_pfad.exists():
-        raise SystemExit(f"{privat_pfad} existiert schon. Bestehenden Schlüssel nicht überschreiben.")
+    os.chmod(ziel, 0o700)
+    privat_pfad, jwk_pfad = ziel / "privat.pem", ziel / "privat.jwk.json"
+    for p in (privat_pfad, jwk_pfad):
+        if p.exists():
+            raise SystemExit(f"{p} existiert schon. Bestehenden Schlüssel nicht überschreiben.")
     s = Ed25519PrivateKey.generate()
-    pem = s.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
-                          serialization.NoEncryption())
-    fd = os.open(privat_pfad, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    with os.fdopen(fd, "wb") as f:
-        f.write(pem)
     x = oeffentlich_x(s)
-    d = b64url(s.private_bytes(serialization.Encoding.Raw, serialization.PrivateFormat.Raw,
-                               serialization.NoEncryption()))
     oeffentlich = {"kty": "OKP", "crv": "Ed25519", "x": x}
+    roh = s.private_bytes(serialization.Encoding.Raw, serialization.PrivateFormat.Raw,
+                          serialization.NoEncryption())
+    _nur_eigentuemer(privat_pfad, s.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
+                                                  serialization.NoEncryption()))
+    _nur_eigentuemer(jwk_pfad, json.dumps({**oeffentlich, "d": b64url(roh)},
+                                          separators=(",", ":")).encode("utf-8"))
     (ziel / "oeffentlich.jwk.json").write_text(json.dumps(oeffentlich, indent=2), encoding="utf-8")
     return {"keyid": jwk_thumbprint(x), "oeffentlich": oeffentlich,
-            "pages_secret": json.dumps({**oeffentlich, "d": d}, separators=(",", ":"))}
+            "privat_pem": str(privat_pfad), "privat_jwk": str(jwk_pfad)}
 
 
 def lade(pfad: str) -> Ed25519PrivateKey:
